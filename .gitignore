@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 校对运行时产生的工作目录与产物 / proofreading work artifacts
+_epubwork/
+*_corrected.epub
+changes_report.md
+changes_report.json
+fixes.json
+
+# 打包产物（由 scripts/build_skill.sh 生成）/ built bundle (regenerable)
+*.skill
+
+# macOS
+.DS_Store
