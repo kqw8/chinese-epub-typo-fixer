@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "kqw8-skills",
+  "owner": {
+    "name": "kqw8"
+  },
+  "metadata": {
+    "description": "kqw8 的开源 Claude 技能合集 / kqw8's open-source Claude skills.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "chinese-epub-typo-fixer",
+      "source": "./",
+      "description": "中文 EPUB 电子书 OCR 错别字校对器：保守纠错 + 旧用字现代化建议。A conservative Chinese EPUB OCR-typo proofreader."
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin.json",
+  "name": "chinese-epub-typo-fixer",
+  "displayName": "中文 EPUB 校对器",
+  "version": "1.0.0",
+  "description": "校对并修正图片 OCR 扫描产生的中文错别字（形近字、繁简混入），并把旧用字（如 象/像）整理成可选的现代化建议；输出修正后的 EPUB 加一份逐条改动明细。极端保守，拿不准就不改。Chinese EPUB OCR-typo proofreader + optional archaic-usage modernization.",
+  "author": {
+    "name": "kqw8"
+  },
+  "homepage": "https://github.com/kqw8/chinese-epub-typo-fixer",
+  "repository": "https://github.com/kqw8/chinese-epub-typo-fixer",
+  "license": "MIT",
+  "keywords": [
+    "epub",
+    "ocr",
+    "chinese",
+    "proofreading",
+    "typo",
+    "ebook"
+  ]
+}

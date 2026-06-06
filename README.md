@@ -30,22 +30,32 @@ You get two outputs: a **corrected EPUB** and a **detailed change report**.
 
 ### 安装
 
-```bash
-# Claude Code（用户级）—— 直接 clone 到 skills 目录
-git clone https://github.com/kqw8/chinese-epub-typo-fixer ~/.claude/skills/chinese-epub-typo-fixer
-# 或项目级
-git clone https://github.com/kqw8/chinese-epub-typo-fixer .claude/skills/chinese-epub-typo-fixer
+**推荐：作为 Claude Code 插件一键安装。** 在 Claude Code 里直接输入这两条斜杠命令：
+
 ```
+/plugin marketplace add kqw8/chinese-epub-typo-fixer
+/plugin install chinese-epub-typo-fixer@kqw8-skills
+```
+
+安装后 skill 自动注册——把 `.epub` 丢给 Claude，说「帮我校对这本中文书的 OCR 错别字」即可。
 
 依赖（多数环境已自带）：`pip install beautifulsoup4 lxml`
 
-打包成可分发的 `.skill`（可选）：`bash scripts/build_skill.sh`
+**手动安装（不走插件）**：把仓库里的 `skills/chinese-epub-typo-fixer/` 目录拷进你的 skills 目录：
+
+```bash
+git clone https://github.com/kqw8/chinese-epub-typo-fixer
+cp -r chinese-epub-typo-fixer/skills/chinese-epub-typo-fixer ~/.claude/skills/
+```
+
+打包成离线 `.skill` 文件（可选，多数人用不到）：`bash build_skill.sh`
 
 ### 用法
 
-把 `.epub` 交给 Claude，说「帮我校对这本中文书的 OCR 错别字」即可。手动两步：
+把 `.epub` 交给 Claude，说「帮我校对这本中文书的 OCR 错别字」即可。也可手动跑脚本（脚本在 `skills/chinese-epub-typo-fixer/scripts/`）：
 
 ```bash
+cd skills/chinese-epub-typo-fixer
 # 1) 拆书
 python3 scripts/extract_epub.py 书.epub 工作目录
 
@@ -112,16 +122,21 @@ For **Chinese e-books produced by image OCR**, it handles two categories separat
 
 ### Install
 
-```bash
-git clone https://github.com/kqw8/chinese-epub-typo-fixer ~/.claude/skills/chinese-epub-typo-fixer
+**Recommended — install as a Claude Code plugin.** Type these slash commands in Claude Code:
+
 ```
-Deps: `pip install beautifulsoup4 lxml`. Build a distributable bundle (optional): `bash scripts/build_skill.sh`
+/plugin marketplace add kqw8/chinese-epub-typo-fixer
+/plugin install chinese-epub-typo-fixer@kqw8-skills
+```
+
+Deps: `pip install beautifulsoup4 lxml`. Manual install: copy `skills/chinese-epub-typo-fixer/` into your skills dir. Build a standalone `.skill` bundle (optional): `bash build_skill.sh`.
 
 ### Usage
 
-Give Claude the `.epub` and ask it to proofread. Or run manually:
+Give Claude the `.epub` and ask it to proofread. Or run the scripts manually (they live in `skills/chinese-epub-typo-fixer/scripts/`):
 
 ```bash
+cd skills/chinese-epub-typo-fixer
 python3 scripts/extract_epub.py book.epub workdir
 # Claude reads workdir/chapters/*.txt, writes fixes.json
 python3 scripts/apply_fixes.py workdir/manifest.json fixes.json out.epub
@@ -136,17 +151,26 @@ guardrail-skipped). See `SKILL.md` and `references/ocr-error-guide.md` for detai
 
 ## 目录结构 / Structure
 
+本仓库同时是一个 **Claude Code 插件市场（marketplace）** 和它收录的**单个插件**，插件里打包了这个 skill。
+This repo is both a Claude Code **plugin marketplace** and the single **plugin** it lists, which bundles the skill.
+
 ```
 chinese-epub-typo-fixer/
-├── SKILL.md                   # 技能主文件（中文）/ skill manifest (Chinese)
+├── .claude-plugin/
+│   ├── marketplace.json       # 市场清单 / marketplace manifest (name: kqw8-skills)
+│   └── plugin.json            # 插件清单 / plugin manifest
+├── skills/
+│   └── chinese-epub-typo-fixer/
+│       ├── SKILL.md           # 技能主文件（中文）/ skill manifest (Chinese)
+│       ├── references/
+│       │   └── ocr-error-guide.md   # 判别指南 / judgment guide
+│       └── scripts/
+│           ├── extract_epub.py      # 拆书 / unpack & analyze
+│           ├── apply_fixes.py       # 回写+护栏+报告 / apply + guardrails + report
+│           └── lib/epub_utils.py    # EPUB 读写工具 / EPUB I/O utils
 ├── README.md                  # 本文件（中英双语）/ this file (bilingual)
 ├── LICENSE                    # MIT
-├── references/
-│   └── ocr-error-guide.md     # 判别指南（中文）/ judgment guide (Chinese)
-└── scripts/
-    ├── extract_epub.py        # 拆书 / unpack & analyze
-    ├── apply_fixes.py         # 回写+护栏+报告 / apply + guardrails + report
-    └── lib/epub_utils.py      # EPUB 读写工具 / EPUB I/O utils
+└── build_skill.sh             # 打离线 .skill 包（可选）/ build a standalone .skill (optional)
 ```
 
 ## 许可 / License

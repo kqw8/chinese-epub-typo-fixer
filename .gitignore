@@ -15,5 +15,9 @@ fixes.json
 # 打包产物（由 scripts/build_skill.sh 生成）/ built bundle (regenerable)
 *.skill
 
+# 本地 Claude Code 个人设置（注意：不忽略 .claude-plugin/）
+# local Claude Code personal settings (note: does NOT ignore .claude-plugin/)
+.claude/
+
 # macOS
 .DS_Store
