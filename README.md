@@ -1,82 +1,101 @@
+English | [简体中文](README.zh-CN.md)
+
 # chinese-epub-typo-fixer
 
-> 一个 Claude 技能：校对中文 EPUB 电子书的 OCR 错别字，并把旧用字整理成可选的现代化建议。
-> A Claude skill for proofreading OCR typos in **Chinese** EPUB e-books, plus optional modernization of archaic character usage.
+A Claude skill for proofreading OCR typos in Chinese EPUB e-books, with optional modernization of archaic character usage. It produces a **corrected EPUB** and a **detailed change report**.
 
-处理完给你两样东西：一本**修正后的 EPUB**，和一份**逐条改动明细**。
-You get two outputs: a **corrected EPUB** and a **detailed change report**.
+## What it does
 
----
+For Chinese e-books whose text was produced by image OCR, it handles two categories separately:
 
-## 中文说明
+1. **Confident OCR typos**, such as visually similar character confusions or simplified/traditional mix-ups (e.g. `莨蓿 → 莨菪`, `傍睌 → 傍晚`), are applied by default, subject to validation.
+2. **Archaic-usage modernization**, such as old `象` used where modern Chinese writes `像`, is listed only by default. You decide whether to apply it.
 
-### 它做什么
+### Principles and limits
 
-针对**图片 OCR 扫描生成的中文电子书**，把两类问题分开处理：
+- **Extremely conservative: when in doubt, leave it unchanged.** Intended for already-high-quality books with sparse errors. A missed fix is safer than an incorrect one; this is proofreading, not rewriting.
+- **Claude finds the errors; scripts do the mechanical work** of unpacking, rewriting, repacking, and reporting. The scripts do not perform image OCR or independently detect typos.
+- **Visually similar is not semantically similar.** OCR errors are based on glyph shapes, not synonyms.
+- **Judge each occurrence.** Only `象` used as `像` is a modernization candidate; `大象`, `象征`, and `想象` are not. This is not a global find-and-replace.
+- **Guardrails skip uncertain replacements.** Ambiguous or missing matches, changes exceeding six differing characters, and inconsistent `original`/`corrected` versus `wrong`/`right` pairs go into the report for review.
+- **Local scripts, small dependency set.** The Python scripts use the standard library plus BeautifulSoup and lxml, with no network calls. Claude access and installation have their own connectivity requirements.
+- **All user-facing skill output is in Simplified Chinese**, including conversation and reports.
 
-1. **确信的 OCR 错别字**（形近字、繁简混入，如「莨蓿→莨菪」「傍睌→傍晚」）——**默认改掉**。
-2. **旧用字现代化**（如「象→像」这种现代读者会觉得别扭、甚至误以为是错字的旧写法）——
-   **默认只列出、不改**，由你决定要不要统一成现代写法。
+## Installation
 
-### 设计原则
+### Claude Code plugin (recommended)
 
-- **极端保守，拿不准就不改。** 适合处理本就高质量、错误稀少的书；漏改远比误改安全。
-- **真正"找错字"的是 Claude（模型），脚本只做机械活**（拆包、精确回写、重打包、出报告）。
-- **形近 ≠ 义近。** OCR 按字形猜，错的都是"长得像"的字（晚→睌），不会把"机器"错成"机械"。
-- **多义字逐处判断。** "象"当"像"用才改，"大象/象征/想象"绝不动——绝非查找替换。
-- **多重护栏。** 定位不唯一 / 找不到 / 改动过大 / 前后不一致，一律不强行改，列入报告交人工确认。
-- **零外部依赖、不联网。** EPUB 本质是 ZIP，只用标准库 + BeautifulSoup/lxml。
-- **输出一律简体中文**（含与用户对话、报告），不漂移到其他语言。
+Run these slash commands in Claude Code:
 
-### 安装
-
-**推荐：作为 Claude Code 插件一键安装。** 在 Claude Code 里直接输入这两条斜杠命令：
-
-```
+```text
 /plugin marketplace add kqw8/chinese-epub-typo-fixer
 /plugin install chinese-epub-typo-fixer@kqw8-skills
 ```
 
-安装后 skill 自动注册——把 `.epub` 丢给 Claude，说「帮我校对这本中文书的 OCR 错别字」即可。
+The skill registers automatically. Give Claude an `.epub` file and ask it to proofread the book's Chinese OCR text.
 
-依赖（多数环境已自带）：`pip install beautifulsoup4 lxml`
+The scripts require Python 3 and these packages:
 
-**手动安装（不走插件）**：把仓库里的 `skills/chinese-epub-typo-fixer/` 目录拷进你的 skills 目录：
+```bash
+python3 -m pip install beautifulsoup4 lxml
+```
+
+### Manual installation
+
+Copy the skill directory into your Claude skills directory:
 
 ```bash
 git clone https://github.com/kqw8/chinese-epub-typo-fixer
+mkdir -p ~/.claude/skills
 cp -r chinese-epub-typo-fixer/skills/chinese-epub-typo-fixer ~/.claude/skills/
 ```
 
-打包成离线 `.skill` 文件（可选，多数人用不到）：`bash build_skill.sh`
+Optionally, run `bash build_skill.sh` from the repository root to build `chinese-epub-typo-fixer.skill`, a ZIP bundle for distribution. This requires Bash and `zip`; it packages the skill, not its Python dependencies.
 
-### 用法
+## Usage
 
-把 `.epub` 交给 Claude，说「帮我校对这本中文书的 OCR 错别字」即可。也可手动跑脚本（脚本在 `skills/chinese-epub-typo-fixer/scripts/`）：
+Give Claude the `.epub` and ask it to proofread. To run the mechanical steps manually, start from the repository root:
 
 ```bash
 cd skills/chinese-epub-typo-fixer
-# 1) 拆书
-python3 scripts/extract_epub.py 书.epub 工作目录
 
-# （中间：Claude 逐章阅读 工作目录/chapters/*.txt，按原则找错，写出 fixes.json）
+# 1. Unpack the book and extract chapter text.
+python3 scripts/extract_epub.py book.epub workdir
 
-# 2) 回写（第一遍：改OCR错字，旧用字只列出）
-python3 scripts/apply_fixes.py 工作目录/manifest.json fixes.json 输出.epub
+# 2. Claude reads workdir/chapters/*.txt and writes fixes.json.
 
-# 3)（可选）你同意现代化旧用字后，加 flag 重跑
-python3 scripts/apply_fixes.py 工作目录/manifest.json fixes.json 输出.epub --apply-modernization
+# 3. Apply OCR fixes; list modernization suggestions without applying them.
+python3 scripts/apply_fixes.py workdir/manifest.json fixes.json out.epub
+
+# 4. Optional: after approving modernization, start again from the source book
+#    so the report includes all fixes against the original text.
+python3 scripts/extract_epub.py book.epub workdir
+python3 scripts/apply_fixes.py workdir/manifest.json fixes.json out.epub --apply-modernization
 ```
 
-产出：`输出.epub`、`工作目录/changes_report.md`（分三区：OCR修正 / 旧用字现代化 / 护栏未应用）。
+Use your actual input path in place of `book.epub`. Extraction defaults to `_epubwork` if the working directory is omitted. Applying fixes defaults to `<source-name>_corrected.epub` in the working directory if the output path is omitted.
 
-### 处理规模与并行
+Outputs are the corrected EPUB, `workdir/changes_report.md`, and `workdir/changes_report.json`. The Markdown report separates applied OCR fixes, modernization suggestions or results, and skipped OCR fixes.
 
-`extract_epub.py` 按全书字数给出建议 agent 数（上限 10）：< 5 万→1，5–15 万→2，15–30 万→3，
-30–60 万→5，> 60 万→5–10。并行只在支持子代理的环境（Claude Code / Cowork）且书大时才有意义，
-否则自动单 agent 串行。**任务很轻，能用 1 个就别用 5 个。**
+**File handling:** extraction replaces `workdir/unpacked`; applying fixes modifies those unpacked chapter files and replaces the output EPUB and reports. Keep the source EPUB separate from the output. Rerunning against an already-modified workspace can report previously applied fixes as missing, so re-extract the original first when you need a complete new report. Keep `fixes.json` outside `workdir/unpacked`.
 
-### fixes.json 格式
+### Book size and parallelism
+
+Extraction records a recommended agent count based on the number of CJK characters:
+
+| Characters | Recommended agents |
+| --- | --- |
+| Under 50,000 | 1 |
+| 50,000–149,999 | 2 |
+| 150,000–299,999 | 3 |
+| 300,000–599,999 | 5 |
+| 600,000 or more | 5, plus 1 per additional 200,000; capped at 10 |
+
+This is a recommendation, not automatic process spawning by the script. The skill uses parallel review only for larger books in environments supporting subagents (such as Claude Code / Cowork); otherwise it reviews sequentially. Prefer one agent when sufficient.
+
+### `fixes.json` format
+
+Chinese text and reasons below are example data:
 
 ```json
 {
@@ -91,93 +110,34 @@ python3 scripts/apply_fixes.py 工作目录/manifest.json fixes.json 输出.epub
 }
 ```
 
-详见 `SKILL.md`；判别标准与边界情况见 `references/ocr-error-guide.md`。
+Include all fields. `chapter_index` comes from `manifest.json`; `original` should be a sentence or sufficiently long passage that uniquely identifies the location in that chapter. `corrected` is the same passage after correction, `wrong`/`right` identify the changed text, and `reason` explains the decision. An omitted `category` is treated as `ocr_error`. Combine parallel reviews by concatenating their `fixes` arrays; do not invent changes for chapters without errors.
 
----
+See the [skill instructions](skills/chinese-epub-typo-fixer/SKILL.md) and [OCR judgment guide](skills/chinese-epub-typo-fixer/references/ocr-error-guide.md) for the full workflow and edge cases. Both documents are in Chinese.
 
-## English
+## Repository structure
 
-### What it does
+This repository is both a Claude Code plugin marketplace and the single plugin it lists.
 
-For **Chinese e-books produced by image OCR**, it handles two categories separately:
-
-1. **Confident OCR typos** (visually-similar character confusions, simplified/traditional mix-ups)
-   — **applied by default**.
-2. **Archaic-usage modernization** (e.g. old 象 used where modern Chinese writes 像, which today's
-   readers may mistake for typos) — **listed only by default**; you decide whether to apply.
-
-### Principles
-
-- **Extremely conservative — when in doubt, don't change.** Built for already-high-quality books;
-  a missed fix is far safer than a wrong one.
-- **Claude (the model) finds the errors; scripts only do mechanical work** (unpack, precise rewrite,
-  repack, report).
-- **Visually-similar ≠ semantically-similar.** OCR guesses by glyph shape, so its errors look alike.
-- **Per-occurrence judgment for polysemous characters.** Only 象-as-像 is changed; 大象/象征/想象
-  are never touched. This is not find-and-replace.
-- **Multiple guardrails.** Non-unique match / not found / oversized change / inconsistency are never
-  force-applied — they go into the report for human review.
-- **Zero external deps, no network.** EPUB is just a ZIP; uses stdlib + BeautifulSoup/lxml only.
-- **All user-facing output is in Simplified Chinese** by design (this is a Chinese-book tool).
-
-### Install
-
-**Recommended — install as a Claude Code plugin.** Type these slash commands in Claude Code:
-
-```
-/plugin marketplace add kqw8/chinese-epub-typo-fixer
-/plugin install chinese-epub-typo-fixer@kqw8-skills
-```
-
-Deps: `pip install beautifulsoup4 lxml`. Manual install: copy `skills/chinese-epub-typo-fixer/` into your skills dir. Build a standalone `.skill` bundle (optional): `bash build_skill.sh`.
-
-### Usage
-
-Give Claude the `.epub` and ask it to proofread. Or run the scripts manually (they live in `skills/chinese-epub-typo-fixer/scripts/`):
-
-```bash
-cd skills/chinese-epub-typo-fixer
-python3 scripts/extract_epub.py book.epub workdir
-# Claude reads workdir/chapters/*.txt, writes fixes.json
-python3 scripts/apply_fixes.py workdir/manifest.json fixes.json out.epub
-# Optional, after you approve modernization:
-python3 scripts/apply_fixes.py workdir/manifest.json fixes.json out.epub --apply-modernization
-```
-
-Outputs: `out.epub` and `workdir/changes_report.md` (three sections: OCR fixes / modernization /
-guardrail-skipped). See `SKILL.md` and `references/ocr-error-guide.md` for details.
-
----
-
-## 目录结构 / Structure
-
-本仓库同时是一个 **Claude Code 插件市场（marketplace）** 和它收录的**单个插件**，插件里打包了这个 skill。
-This repo is both a Claude Code **plugin marketplace** and the single **plugin** it lists, which bundles the skill.
-
-```
+```text
 chinese-epub-typo-fixer/
 ├── .claude-plugin/
-│   ├── marketplace.json       # 市场清单 / marketplace manifest (name: kqw8-skills)
-│   └── plugin.json            # 插件清单 / plugin manifest
-├── skills/
-│   └── chinese-epub-typo-fixer/
-│       ├── SKILL.md           # 技能主文件（中文）/ skill manifest (Chinese)
-│       ├── references/
-│       │   └── ocr-error-guide.md   # 判别指南 / judgment guide
-│       └── scripts/
-│           ├── extract_epub.py      # 拆书 / unpack & analyze
-│           ├── apply_fixes.py       # 回写+护栏+报告 / apply + guardrails + report
-│           └── lib/epub_utils.py    # EPUB 读写工具 / EPUB I/O utils
-├── README.md                  # 本文件（中英双语）/ this file (bilingual)
-├── LICENSE                    # MIT
-└── build_skill.sh             # 打离线 .skill 包（可选）/ build a standalone .skill (optional)
+│   ├── marketplace.json           # Marketplace: kqw8-skills
+│   └── plugin.json                # Plugin metadata
+├── skills/chinese-epub-typo-fixer/
+│   ├── SKILL.md                   # Skill instructions (Chinese)
+│   ├── references/ocr-error-guide.md
+│   └── scripts/
+│       ├── extract_epub.py        # Unpack and analyze
+│       ├── apply_fixes.py         # Apply, validate, and report
+│       └── lib/epub_utils.py      # Shared EPUB utilities
+├── README.md
+├── README.zh-CN.md
+├── LICENSE
+└── build_skill.sh                 # Optional standalone bundle
 ```
 
-## 许可 / License
+## License
 
-MIT，见 `LICENSE`。欢迎 fork、改进、分享 / Fork and contribute freely.
+MIT; see [LICENSE](LICENSE). Forks and contributions are welcome.
 
----
-
-*这是一个社区 Claude 技能，并非 Anthropic 官方产品。*
-*A community Claude skill, not an official Anthropic product.*
+A community Claude skill, not an official Anthropic product.
